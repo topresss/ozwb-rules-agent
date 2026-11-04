@@ -34,9 +34,6 @@
 
 ---
 
-<p align="center"><strong>项目交流、部署与定制合作：</strong>微信 <code>ziyi_ozon</code></p>
-
----
 
 ## 项目简介
 
