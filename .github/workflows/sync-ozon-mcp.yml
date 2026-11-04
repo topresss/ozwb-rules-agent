@@ -1,1 +1,25 @@
+name: Sync OZON_MCP Upstream
+on:
+  workflow_dispatch:
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Run sync script
+        run: |
+          chmod +x ./OZON_MCP/sync-upstream.sh
+          ./OZON_MCP/sync-upstream.sh
+      - name: Commit and push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add OZON_MCP/
+          if ! git diff --staged --quiet; then
+            git commit -m "sync: auto update OZON_MCP from upstream wbcyclist/OZON_MCP"
+            git push
+          fi
 
