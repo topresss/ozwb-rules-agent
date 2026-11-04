@@ -1,1 +1,90 @@
+name: OZON MCP CI
 
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --all-extras --frozen
+
+      - name: Validate operations knowledge base
+        run: uv run python scripts/validate_operations_knowledge.py
+
+      - name: Ruff check
+        run: uv run ruff check .
+
+      - name: MyPy type check
+        run: uv run mypy src
+
+      - name: Run tests
+        run: uv run pytest -m "not live"
+
+      - name: Build wheel
+        run: uv build
+
+      - name: Verify wheel contains knowledge data
+        run: |
+          wheel=$(ls dist/*.whl | head -1)
+          echo "Checking: $wheel"
+          python -c "
+          import zipfile, sys
+          wheel = '$wheel'
+          required = [
+              'ozon_mcp/operations_knowledge/data/manifest.yaml',
+              'ozon_mcp/operations_knowledge/data/chunks.jsonl',
+              'ozon_mcp/operations_knowledge/data/topics.json',
+              'ozon_mcp/operations_knowledge/data/ozon_operations_knowledge.md',
+          ]
+          with zipfile.ZipFile(wheel) as zf:
+              names = zf.namelist()
+              for r in required:
+                  assert r in names, f'Missing in wheel: {r}'
+              print(f'All {len(required)} knowledge files present in wheel')
+          "
+
+      - name: Smoke test wheel
+        run: |
+          wheel=$(ls dist/*.whl | head -1)
+          python -m venv /tmp/test-venv
+          /tmp/test-venv/bin/pip install "$wheel"
+          /tmp/test-venv/bin/python -c "
+          import ozon_mcp
+          assert ozon_mcp.__version__ == '0.1.1', f'version: {ozon_mcp.__version__}'
+          from ozon_mcp.operations_knowledge.loader import load_operations_knowledge
+          kb = load_operations_knowledge()
+          assert kb.lesson_count == 42
+          assert kb.chunk_count == 610
+          from ozon_mcp.operations_knowledge.search import OperationsKnowledgeSearchIndex
+          idx = OperationsKnowledgeSearchIndex(kb)
+          results = idx.search('新手先做跟卖还是精铺', limit=3)
+          assert len(results) > 0
+          lesson_ids = [r.lesson_id for r in results]
+          assert '03' in lesson_ids, f'expected lesson 03, got {lesson_ids}'
+          results2 = idx.search('什么是货代', limit=3)
+          assert len(results2) > 0
+          assert '01' in [r.lesson_id for r in results2]
+          # Check excerpt not expanded
+          assert len(results[0].excerpt) < 800
+          # Check source fields
+          assert results[0].source_type == 'course_experience'
+          print('Smoke test PASSED')
+          "
+        shell: bash
