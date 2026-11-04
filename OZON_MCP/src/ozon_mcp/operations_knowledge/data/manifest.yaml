@@ -1,0 +1,24 @@
+name: Ozon运营知识库
+version: 1.0.0
+language: zh-CN
+lesson_count: 42
+chunk_count: 610
+source_type: course_experience
+source_file: ozon_operations_knowledge.md
+chunks_file: chunks.jsonl
+topics_file: topics.json
+generated_at: '2026-08-02'
+description: 基于42节Ozon电商课程字幕整理的中文运营知识库，面向MCP检索与Agent问答。
+notice: 课程经验不等同于Ozon当前官方规则。涉及佣金、费用、物流时效、禁售、处罚、广告、退货和平台功能时，应结合最新官方资料与店铺后台复核。
+chunking:
+  strategy: 按课程、句子与语义边界预切片
+  target_chars: 900
+  min_chars: 450
+  max_chars: 1450
+  overlap_chars: 120
+  stable_id: lesson + chunk_index + sha1(content)前8位
+retrieval:
+  engine: BM25
+  tokenization: 中文二元/三元切词 + 业务术语 + 英文数字
+  database_required: false
+  embedding_required: false
